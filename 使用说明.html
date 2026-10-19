@@ -1,0 +1,164 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Qwen3.5-9B 本地 AI 使用说明</title><style>
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0 auto; padding: 48px 28px 96px; max-width: 900px;
+  font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-size: 16px; line-height: 1.8; color: #1c1c20; background: #fdfdfd;
+}
+h1 { font-size: 1.9em; margin: 0 0 .2em; letter-spacing: -.01em; }
+h2 { font-size: 1.35em; margin: 2.2em 0 .6em; padding-bottom: .3em; border-bottom: 1px solid #e6e6ea; }
+h3 { font-size: 1.1em; margin: 1.6em 0 .5em; }
+p { margin: .8em 0; }
+strong { font-weight: 650; }
+hr { border: none; border-top: 1px solid #e6e6ea; margin: 2.4em 0; }
+a { color: #1a66d0; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+  font-size: .9em; background: #f1f2f5; padding: .15em .4em; border-radius: 5px;
+}
+pre {
+  background: #17181c; color: #e6e7ea; padding: 14px 16px; border-radius: 10px;
+  overflow-x: auto; line-height: 1.55;
+}
+pre code { background: none; padding: 0; color: inherit; font-size: .88em; }
+table { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: .94em; }
+th, td { border: 1px solid #e2e2e8; padding: 9px 12px; text-align: left; vertical-align: top; }
+th { background: #f5f6f9; font-weight: 600; }
+tbody tr:nth-child(even) { background: #fafafc; }
+ul, ol { padding-left: 1.5em; }
+li { margin: .35em 0; }
+blockquote {
+  margin: 1.2em 0; padding: .2em 1em; border-left: 3px solid #c9ccd6;
+  background: #f7f8fa; border-radius: 0 8px 8px 0; color: #444a55;
+}
+@media (prefers-color-scheme: dark) {
+  body { background: #14151a; color: #e6e7ea; }
+  h2 { border-color: #2a2c33; }
+  hr { border-color: #2a2c33; }
+  code { background: #23252c; }
+  pre { background: #0f1013; border: 1px solid #26282f; }
+  th, td { border-color: #2a2c33; }
+  th { background: #1c1e24; }
+  tbody tr:nth-child(even) { background: #191b20; }
+  blockquote { background: #1b1d23; border-color: #3a3f4b; color: #b9bdc7; }
+  a { color: #6cb0ff; }
+}
+@media print {
+  body { padding: 0; max-width: none; }
+  pre { white-space: pre-wrap; }
+}
+</style></head><body>
+<h1>Qwen3.5-9B 本地 AI + DeepSeek Harness 侧栏开关 · 使用说明</h1>
+<p>这份文件夹是一套「开箱即用」的本地大模型方案：双击一个 bat 就能在自己电脑上跑起一个 9B 参数的中文大模型，再装一个插件，就能在 DeepSeek Harness（下称 DSH）左下角用开关启停它。</p>
+<p>不需要显卡驱动以外的任何前置知识，也不需要 Python、CUDA Toolkit、Ollama。</p>
+<hr>
+<h2>一、文件夹里有什么</h2>
+<table><thead><tr><th>文件</th><th>大小</th><th>作用</th></tr></thead><tbody><tr><td><code>qwen-deploy.ps1</code></td><td>约 36 KB</td><td>真正干活的部署脚本，见下方逐条说明</td></tr><tr><td><code>start-qwen.bat</code></td><td>约 1 KB</td><td>双击入口，等价于调用上面那个脚本</td></tr><tr><td><code>api-key.txt</code></td><td>36 字节</td><td>本地 API 的密钥，脚本启动时自动读取</td></tr><tr><td><code>dsh-local-model-toggle-plugin-only.zip</code></td><td>约 62 KB</td><td>DSH 侧栏开关插件（带 <code>install.bat</code>）</td></tr><tr><td><code>部署入deepseek harness参数.docx</code></td><td>约 10 KB</td><td>在 DSH 里添加本地模型时要填的表单参数</td></tr><tr><td><code>使用说明.html</code></td><td>约 22 KB</td><td>就是本文，双击用浏览器打开（推荐）</td></tr><tr><td><code>使用说明.md</code></td><td>约 15 KB</td><td>同一份说明的 Markdown 源文件</td></tr></tbody></table>
+<h3>1. <code>qwen-deploy.ps1</code> —— 部署脚本</h3>
+<p>它按顺序做这些事，每一步失败都会用中文说明原因：</p>
+<ol><li><strong>查环境</strong>：确认有 <code>curl.exe</code>、有 NVIDIA 驱动（<code>nvcuda.dll</code>）、有 MSVC 运行库（<code>vcruntime140.dll</code> 等，缺了会自动下载安装，会弹一次 UAC 授权）。</li><li><strong>下载运行时</strong>：从 GitHub 拉 llama.cpp 的 Windows CUDA 版（两个压缩包共约 550 MB，解压后约 1.3 GB）。直连被墙或限速时，会自动换 <code>ghfast.top</code>、<code>gh-proxy.com</code>、<code>ghproxy.net</code> 等镜像重试。</li><li><strong>下载模型</strong>：从 <code>hf-mirror.com</code> 拉 <code>Qwen3.5-9B-UD-Q4_K_XL.gguf</code>（约 5.6 GB），支持断点续传，网络中断后重跑会接着下。</li><li><strong>启动服务</strong>：把模型整体加载到显卡上，起一个 OpenAI 兼容的 HTTP 服务（默认 <code>127.0.0.1:8080</code>）。</li><li><strong>自检</strong>：发一句话给模型，把回复和「每秒多少 token」打印出来。</li></ol>
+<p>首次运行后，这个文件夹里会多出：</p>
+<ul><li><code>llama.cpp\</code> —— 运行时二进制、模型文件（<code>models\</code>）、服务日志（<code>logs\</code>）</li><li><code>api-info.txt</code> —— 接口地址与调用示例（自动生成）</li><li><code>logs\</code> —— 启动日志</li></ul>
+<h3>2. <code>start-qwen.bat</code> —— 双击就用这个</h3>
+<p>不带参数时，它等于执行 <code>qwen-deploy.ps1 -Background -ApiTest</code>：后台起服务，并自检一次。</p>
+<p>带参数时，参数会原样传给脚本，例如：</p>
+<pre><code class="lang-bat">start-qwen.bat -Stop          :: 停止服务，释放显存
+start-qwen.bat -Status        :: 看服务状态和模型名
+start-qwen.bat -Ctx 32768     :: 用更小的上下文（显存紧张时）
+start-qwen.bat -Port 8081     :: 换端口（8080 被占用时）</code></pre>
+<h3>3. <code>api-key.txt</code> —— 密钥</h3>
+<p>脚本启动时会读这个文件，把里面的内容当作 API 密钥。删掉它、或留空，就用默认值 <code>sk-local-qwen</code>。</p>
+<p><strong>这一份里已经预置了一串密钥</strong>，装好后 DSH 和任何客户端都填这一串（打开文件复制即可，注意别多复制空格或换行）。想换密钥，见第九节。</p>
+<h3>4. <code>dsh-local-model-toggle-plugin-only.zip</code> —— DSH 插件</h3>
+<p>DSH 侧栏左下角的一个胶囊开关，左键启停本地模型，右键换部署目录、设置「闲置 N 分钟自动关闭」。解压后双击 <code>install.bat</code> 即可安装。详细说明见第五节。</p>
+<h3>5. <code>部署入deepseek harness参数.docx</code> —— 表单参数</h3>
+<p>在 DSH 里添加模型提供商时要填的字段和值。照着抄即可，本文第六节也会再写一遍。</p>
+<hr>
+<h2>二、这套本地 AI 是什么</h2>
+<table><thead><tr><th>项目</th><th>内容</th></tr></thead><tbody><tr><td>推理引擎</td><td><strong>llama.cpp</strong>（不是 Ollama，也不是 LM Studio）。同一张显卡上，llama.cpp 实测比 Ollama 快约 1.8 倍</td></tr><tr><td>模型</td><td><strong>Qwen3.5-9B</strong>，Unsloth 发布的 GGUF 量化版，量化级别 <code>UD-Q4_K_XL</code>（≈ Q4_K_M）</td></tr><tr><td>参数量 / 体积</td><td>8.95B 参数 / 约 5.6 GB 单文件</td></tr><tr><td>上下文长度</td><td>默认 131072（128K）。模型本身支持 262144（256K），但 12 GB 显存装不下那么长的 KV 缓存</td></tr><tr><td>接口形式</td><td>OpenAI 兼容：<code>http://127.0.0.1:8080/v1/chat/completions</code></td></tr><tr><td>是否需要联网</td><td>装好之后<strong>完全离线可用</strong></td></tr><tr><td>实测速度</td><td>生成 60–75 token/秒，读入约 200–240 token/秒（RTX 5070 Ti Laptop 12 GB + 16 GB 内存）</td></tr><tr><td>实测显存</td><td>约 10.4 GB（128K 上下文时）</td></tr></tbody></table>
+<p><strong>它擅长什么</strong>：中文写作与改写、翻译、摘要、代码补全、简单的多轮对话。</p>
+<p><strong>它不擅长什么</strong>：复杂逻辑推理、长链条工具调用、超大项目代码理解。这些还是得用云端大模型。9B 参数量在本地属于「够用」档，不要指望它等于 70B。</p>
+<hr>
+<h2>三、你的电脑要满足什么</h2>
+<table><thead><tr><th>项目</th><th>最低</th><th>推荐</th><th>说明</th></tr></thead><tbody><tr><td>显卡</td><td>NVIDIA，可用显存 ≥ 6 GB</td><td>12 GB</td><td>必须是 NVIDIA。AMD / Intel 核显跑不了这套 CUDA 版本</td></tr><tr><td>内存</td><td>16 GB</td><td>32 GB</td><td>16 GB 够用，脚本不让 CPU 参与推理</td></tr><tr><td>磁盘</td><td>10 GB 空闲</td><td>20 GB</td><td>运行时 1.5 GB + 模型 5.6 GB + 余量</td></tr><tr><td>系统</td><td>Windows 10 1803+ / Windows 11</td><td>—</td><td>需要系统自带 <code>curl.exe</code> 与 <code>tar.exe</code></td></tr><tr><td>运行库</td><td>VC++ 2015-2022 x64</td><td>—</td><td>缺了脚本会自动装（弹一次 UAC，点「是」）</td></tr><tr><td>显卡驱动</td><td>支持 CUDA 13 的版本</td><td>最新</td><td>RTX 50 系必须装较新的驱动，否则脚本会报「没有列出 CUDA0」</td></tr><tr><td>网络</td><td>能访问 GitHub 与 hf-mirror.com</td><td>建议开代理</td><td>下载量约 6.2 GB，国内直连可能很慢</td></tr></tbody></table>
+<hr>
+<h2>四、第一步：部署本地 AI</h2>
+<p>预计耗时 15–40 分钟，主要取决于网速。</p>
+<h3>1. 放好文件夹</h3>
+<p>把整个文件夹放到一个<strong>路径较短、没有中文空格</strong>的位置，例如 <code>D:\Qwen3.5</code>。</p>
+<p>不要放在 OneDrive / 网盘同步目录里，也不要在 U 盘上跑（模型加载会慢很多）。</p>
+<h3>2. 双击 <code>start-qwen.bat</code></h3>
+<p>会弹出一个黑色窗口，标题是 <code>Qwen3.5-9B Local API</code>。</p>
+<h3>3. 屏幕上会发生什么</h3>
+<table><thead><tr><th>阶段</th><th>你会看到</th><th>大约耗时</th></tr></thead><tbody><tr><td>环境检查</td><td><code>[*] 工作目录</code>、缺 VC++ 运行库时的 UAC 弹窗</td><td>几秒</td></tr><tr><td>下载运行时</td><td><code>[*] 下载 llama-b11669-bin-win-cuda-13.4-x64.zip</code>，每涨 5% 打一行进度</td><td>1–10 分钟</td></tr><tr><td>解压</td><td><code>[*] 解压…</code></td><td>30 秒</td></tr><tr><td>验证 CUDA</td><td><code>[*] CUDA0: NVIDIA GeForce ... (12226 MiB)</code>、<code>[+] CUDA 后端可用</code></td><td>几秒</td></tr><tr><td>下载模型</td><td><code>[*] 模型 … 已下载 1234 MB / 5560 MB</code>，每 5% 一行</td><td>5–25 分钟</td></tr><tr><td>启动服务</td><td><code>[+] 等待服务就绪</code>、<code>[+] 服务在运行</code></td><td>10–60 秒</td></tr><tr><td>自检</td><td><code>模型回复:</code> 一段中文，<code>生成速度: 68.3 tok/s</code></td><td>几秒</td></tr></tbody></table>
+<p><strong>注意</strong>：下载模型那一段，窗口可能长时间只有几行输出，这是正常的（每 5% 才打印一次）。想看实时进度可以另开一个窗口执行：</p>
+<pre><code class="lang-powershell">Get-Content &#x27;D:\Qwen3.5\llama.cpp\logs\*.err.log&#x27; -Tail 8 -Wait</code></pre>
+<h3>4. 成功的标志</h3>
+<p>看到这三行就算成了：</p>
+<pre><code>[+] CUDA 后端可用，模型会整体上卡
+[+] 服务在运行：http://127.0.0.1:8080
+生成速度: 68.3 tok/s</code></pre>
+<h3>5. 验证一下</h3>
+<p>浏览器打开 <a href="http://127.0.0.1:8080">http://127.0.0.1:8080</a> —— 会看到一个网页聊天界面，可以直接对话。</p>
+<p>或者用命令行（<code>&lt;你的密钥&gt;</code> 换成 <code>api-key.txt</code> 里的内容）：</p>
+<pre><code class="lang-powershell">curl.exe -s http://127.0.0.1:8080/v1/models -H &quot;Authorization: Bearer &lt;你的密钥&gt;&quot;</code></pre>
+<p>返回里出现 <code>&quot;id&quot;: &quot;qwen3.5-9b&quot;</code> 就对了。</p>
+<h3>6. 以后每次使用</h3>
+<p>双击同一个 <code>start-qwen.bat</code> 即可。如果服务已经在跑，它会直接提示已在运行并跳过下载。</p>
+<p><strong>开机自启（可选）</strong>：把 <code>start-qwen.bat</code> 的快捷方式放进 <code>shell:startup</code> 目录（Win+R 输入 <code>shell:startup</code>）。</p>
+<h3>7. 停止服务</h3>
+<pre><code class="lang-bat">start-qwen.bat -Stop</code></pre>
+<p>约 7 GB 显存会立刻释放。不关也行——插件可以设「闲置 10 分钟自动关闭」。</p>
+<hr>
+<h2>五、第二步：安装 DSH 插件</h2>
+<h3>1. 解压</h3>
+<p>把 <code>dsh-local-model-toggle-plugin-only.zip</code> 解压到任意位置（例如桌面）。</p>
+<p>解压后应该看到：<code>install.bat</code>、<code>uninstall.bat</code>、<code>setup.ps1</code>、<code>uninstall.ps1</code>、<code>lib\</code>、<code>package.json</code>、<code>cordis.patch.yml</code>、<code>README.md</code>、<code>LICENSE</code>、<code>docs\</code>。</p>
+<h3>2. 双击 <code>install.bat</code></h3>
+<p>黑窗口会依次显示：</p>
+<pre><code>[0] 检查环境
+[1] 找已有的模型部署目录
+[2] 安装侧栏插件
+[3] 写插件配置
+[4] 启动模型服务
+[+] 装好了。</code></pre>
+<p>它会自动找到第四节里那个部署目录（如果没找到，会提示你用 <code>-DeployDir</code> 指定；也可以直接把部署文件夹拖到 <code>install.bat</code> 图标上）。</p>
+<p>看到 <code>[i] Done</code> 后按任意键关闭窗口。</p>
+<h3>3. 完全退出 DSH 再打开</h3>
+<p><strong>不是关窗口</strong>，是托盘图标右键 → 退出。DSH 只在启动时加载插件。</p>
+<h3>4. 检查</h3>
+<p>重新打开 DSH，左下角（设置齿轮上方）会出现一个蓝色胶囊：</p>
+<ul><li>左侧文字：<code>本地 Qwen3.5-9B</code></li><li>右侧圆钮：灰色=已停止，绿色=运行中，蓝色=启动中/停止中</li></ul>
+<h3>5. 怎么用</h3>
+<table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>左键点一下</td><td>启动 / 停止本地模型</td></tr><tr><td>右键点一下</td><td>弹出面板：查看/更换部署目录、勾选「闲置自动关闭」并选分钟数、看最近日志</td></tr><tr><td>启动过程中</td><td>开关上方浮出一张深色「终端卡」，逐字打出真实启动日志，服务就绪后自动消失</td></tr><tr><td>开关变红</td><td>说明部署目录找不到了，左键会直接打开文件夹选择框</td></tr></tbody></table>
+<h3>6. 卸载插件</h3>
+<p>双击 <code>uninstall.bat</code>，输入 <code>Y</code> 确认。只会摘掉插件，你的模型和 <code>llama.cpp</code> 文件夹不受影响。</p>
+<hr>
+<h2>六、第三步：让 DSH 用上这个本地模型</h2>
+<p>装好插件只是「能启停」，要让 DSH 真正把本地模型当成一个可选模型来对话，还需要添加一次提供商。</p>
+<ol><li>打开 DSH → <strong>设置 → 模型</strong>（Models）</li><li>点 <strong>添加模型提供商</strong> → 选 <strong>自定义模型 API</strong></li><li>按下表填写（与 <code>部署入deepseek harness参数.docx</code> 一致）：</li></ol>
+<table><thead><tr><th>表单字段</th><th>填什么</th></tr></thead><tbody><tr><td>Provider ID</td><td><code>local-qwen</code>（随便取，能唯一识别就行）</td></tr><tr><td>端点</td><td><code>http://127.0.0.1:8080/v1</code></td></tr><tr><td>协议</td><td><code>OpenAI Chat Completions</code></td></tr><tr><td>API 密钥</td><td><code>api-key.txt</code> 里的那串（以 <code>sk-</code> 开头）</td></tr><tr><td>模型</td><td>点「获取可用模型」→ 勾选 <code>qwen3.5-9b</code></td></tr><tr><td>上下文窗口</td><td><code>131072</code>（显存小的话填 <code>32768</code>）</td></tr></tbody></table>
+<ol><li>保存后<strong>完全退出 DSH 再打开</strong>。</li></ol>
+<blockquote><p>为什么要重启：DSH 当前版本有个 bug——改完配置后热重载会报 <code>profile reload requires the root Include entry</code> 并把改动回滚。所有配置改动都必须靠重启生效。所以插件也建议先装好、再一次性重启。</p></blockquote>
+<ol><li>之后在对话的模型选择里就能看到 <code>本地 Qwen3.5-9B</code>。切换过去即可，此时数据不再离开你的电脑。</li></ol>
+<hr>
+<h2>七、日常使用速查</h2>
+<table><thead><tr><th>想做什么</th><th>怎么做</th></tr></thead><tbody><tr><td>启动模型</td><td>点 DSH 左下角开关，或双击 <code>start-qwen.bat</code></td></tr><tr><td>停止模型、释放显存</td><td>再点一下开关，或 <code>start-qwen.bat -Stop</code></td></tr><tr><td>用网页界面直接聊</td><td>浏览器打开 <a href="http://127.0.0.1:8080">http://127.0.0.1:8080</a></td></tr><tr><td>用代码调用</td><td><code>POST http://127.0.0.1:8080/v1/chat/completions</code>，Header 带 <code>Authorization: Bearer &lt;密钥&gt;</code></td></tr><tr><td>换模型存放位置</td><td>右键插件 → 选择部署目录</td></tr><tr><td>省显存</td><td><code>start-qwen.bat -Ctx 32768</code>（上下文减半，KV 缓存省约 2 GB）</td></tr><tr><td>换端口</td><td><code>start-qwen.bat -Port 8081</code>，同时把 DSH 里的端点改成 8081</td></tr><tr><td>看日志</td><td><code>llama.cpp\logs\</code> 下最新的 <code>*.err.log</code></td></tr><tr><td>卸载插件</td><td>双击 <code>uninstall.bat</code></td></tr><tr><td>彻底删除</td><td>停服务 → 删掉整个文件夹（模型和运行时都在里面）</td></tr></tbody></table>
+<hr>
+<h2>八、常见问题</h2>
+<table><thead><tr><th>现象</th><th>原因</th><th>解决</th></tr></thead><tbody><tr><td>双击 bat 窗口一闪就没了</td><td>大概率缺 VC++ 运行库或显卡驱动</td><td>右键 <code>start-qwen.bat</code> → 以管理员身份运行；或手动装 <a href="https://aka.ms/vs/17/release/vc_redist.x64.exe">https://aka.ms/vs/17/release/vc_redist.x64.exe</a></td></tr><tr><td>提示「没有列出 CUDA0」</td><td>驱动太旧，或这套 CUDA 构建不被驱动接受</td><td>先升级 NVIDIA 驱动；仍不行就重跑 <code>qwen-deploy.ps1 -Cuda cuda-12.4 -Force</code></td></tr><tr><td>下载卡住 / 报 <code>curl: (35)</code></td><td>网络被墙或证书吊销检查失败</td><td>脚本会自动换镜像、并对该错误自动加 <code>--ssl-no-revoke</code> 重试；还不行就开代理再跑</td></tr><tr><td>模型下载报 429</td><td><code>hf-mirror</code> 限流</td><td>等几分钟重跑（会断点续传）；或浏览器打开 <a href="https://hf-mirror.com/unsloth/Qwen3.5-9B-GGUF">https://hf-mirror.com/unsloth/Qwen3.5-9B-GGUF</a> 手动下载 gguf，再 <code>start-qwen.bat -ModelPath &quot;文件路径&quot;</code></td></tr><tr><td>服务起来又立刻退出</td><td>显存不够，模型加载失败</td><td>关掉游戏/浏览器硬件加速；或 <code>-Ctx 32768</code>；或把别的程序关掉腾出显存</td></tr><tr><td>请求返回 401</td><td>密钥不对</td><td>检查 DSH 里填的密钥与 <code>api-key.txt</code> 是否一字不差</td></tr><tr><td>模型回复是空的，但显示生成了几十 token</td><td>模型在想事情（reasoning），<code>max_tokens</code> 太小就会只剩思考内容</td><td>把 <code>max_tokens</code> 调大，或在请求里加 <code>&quot;chat_template_kwargs&quot;: {&quot;enable_thinking&quot;: false}</code></td></tr><tr><td>DSH 里看不到开关</td><td>没重启 DSH；或插件没装进 profile</td><td>完全退出重开；仍没有就重跑 <code>install.bat</code>，看它是否报错</td></tr><tr><td>开关是红色的</td><td>部署目录被移动/改名了</td><td>右键开关 → 选择部署目录，重新指过去</td></tr><tr><td>提示 <code>profile reload requires the root Include entry</code></td><td>DSH 已知 bug</td><td>忽略，完全退出 DSH 再打开即可</td></tr><tr><td>中文在 PowerShell 里显示成乱码</td><td>编码问题</td><td>不用管，不影响运行；不要用记事本「另存为」改 <code>.ps1</code>，会破坏 BOM 导致语法错误</td></tr></tbody></table>
+<hr>
+<h2>九、安全与改密钥</h2>
+<ul><li><code>api-key.txt</code> 里是<strong>明文</strong>密钥，只用于本机。服务默认只监听 <code>127.0.0.1</code>，局域网内其他设备访问不到。</li><li><strong>不要</strong>把 <code>-Listen</code> 改成 <code>0.0.0.0</code>，除非你明确知道自己在做什么（那会把服务暴露到局域网）。</li><li><strong>换密钥</strong>的方法：</li></ul>
+<ol><li>用记事本打开 <code>api-key.txt</code>，改成新的字符串（建议 <code>sk-</code> 开头 + 32 位随机字符），保存时选 UTF-8。</li><li><code>start-qwen.bat -Stop</code></li><li>双击 <code>start-qwen.bat</code> 重新启动</li><li>把 DSH 里那个提供商的 API 密钥同步改成新的，重启 DSH。</li></ol>
+<ul><li>这份文件夹是<strong>连着密钥一起发出去</strong>的。收到的人应当先把 <code>api-key.txt</code> 改成自己的，再启动。</li></ul>
+<hr>
+<h2>十、附录：体积与耗时</h2>
+<table><thead><tr><th>项目</th><th>体积</th><th>说明</th></tr></thead><tbody><tr><td>llama.cpp 运行时（CUDA 13.4）</td><td>两个压缩包共约 550 MB</td><td>解压后约 1.3 GB，脚本默认删掉压缩包</td></tr><tr><td>Qwen3.5-9B UD-Q4_K_XL 模型</td><td>约 5.6 GB</td><td>单个 gguf 文件</td></tr><tr><td>插件</td><td>62 KB</td><td>纯 JS，无依赖</td></tr><tr><td>首次部署总下载量</td><td>约 6.2 GB</td><td>运行时 0.55 GB + 模型 5.6 GB</td></tr><tr><td>安装后占用磁盘</td><td>约 7 GB</td><td>运行时 1.3 GB + 模型 5.6 GB</td></tr></tbody></table>
+<hr>
+<h2>附：一句话版本</h2>
+<ol><li>双击 <code>start-qwen.bat</code>，等它下载完并打出 <code>生成速度: xx tok/s</code>。</li><li>解压插件 zip，双击 <code>install.bat</code>。</li><li>完全退出 DSH 再打开，左下角出现蓝色开关。</li><li>设置 → 模型 → 添加模型提供商 → 自定义模型 API，照第六节的表格填，重启 DSH。</li></ol>
+<p>完事。</p>
+</body></html>
